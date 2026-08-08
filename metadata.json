@@ -1,0 +1,6 @@
+{
+  "name": "Head & Tail Tournament Manager",
+  "description": "Professional cricket-style tournament manager, live match scorebook, all-time player database, ball-by-ball history, and automatic rankings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
