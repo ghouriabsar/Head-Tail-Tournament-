@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TournamentViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -22,26 +23,50 @@ class TournamentViewModel(application: Application) : AndroidViewModel(applicati
     private val _selectedTournamentId = MutableStateFlow<Long?>(null)
     val selectedTournamentId: StateFlow<Long?> = _selectedTournamentId.asStateFlow()
 
-    private val _matches = MutableStateFlow<List<MatchEntity>>(emptyList())
-    val matches: StateFlow<List<MatchEntity>> = _matches.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val matches: StateFlow<List<MatchEntity>> = _selectedTournamentId
+        .flatMapLatest { id ->
+            if (id != null) repository.getMatchesForTournament(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _teams = MutableStateFlow<List<TeamEntity>>(emptyList())
-    val teams: StateFlow<List<TeamEntity>> = _teams.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val teams: StateFlow<List<TeamEntity>> = _selectedTournamentId
+        .flatMapLatest { id ->
+            if (id != null) repository.getTeamsForTournament(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _pointsTable = MutableStateFlow<List<TeamPointsRow>>(emptyList())
-    val pointsTable: StateFlow<List<TeamPointsRow>> = _pointsTable.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pointsTable: StateFlow<List<TeamPointsRow>> = _selectedTournamentId
+        .flatMapLatest { id ->
+            if (id != null) repository.getPointsTable(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _selectedMatchId = MutableStateFlow<Long?>(null)
     val selectedMatchId: StateFlow<Long?> = _selectedMatchId.asStateFlow()
 
-    private val _selectedMatch = MutableStateFlow<MatchEntity?>(null)
-    val selectedMatch: StateFlow<MatchEntity?> = _selectedMatch.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val selectedMatch: StateFlow<MatchEntity?> = _selectedMatchId
+        .flatMapLatest { id ->
+            if (id != null) repository.getMatchById(id) else flowOf(null)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _ballsForSelectedMatch = MutableStateFlow<List<BallEntity>>(emptyList())
-    val ballsForSelectedMatch: StateFlow<List<BallEntity>> = _ballsForSelectedMatch.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val ballsForSelectedMatch: StateFlow<List<BallEntity>> = _selectedMatchId
+        .flatMapLatest { id ->
+            if (id != null) repository.getBallsForMatch(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _lineupForSelectedMatch = MutableStateFlow<List<MatchPlayerEntity>>(emptyList())
-    val lineupForSelectedMatch: StateFlow<List<MatchPlayerEntity>> = _lineupForSelectedMatch.asStateFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val lineupForSelectedMatch: StateFlow<List<MatchPlayerEntity>> = _selectedMatchId
+        .flatMapLatest { id ->
+            if (id != null) repository.getLineupForMatch(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _playerStatsList = MutableStateFlow<List<PlayerStats>>(emptyList())
     val playerStatsList: StateFlow<List<PlayerStats>> = _playerStatsList.asStateFlow()
@@ -76,12 +101,12 @@ class TournamentViewModel(application: Application) : AndroidViewModel(applicati
             repository.initializeDefaultDataIfNeeded()
         }
 
-        // Observe active tournament to update sub-flows
+        // Observe active tournament to update selected ID
         viewModelScope.launch {
             activeTournament.collect { tournament ->
                 if (tournament != null) {
                     _selectedTournamentId.value = tournament.id
-                    observeTournamentData(tournament.id)
+                    refreshPlayerStats()
                 }
             }
         }
@@ -89,45 +114,11 @@ class TournamentViewModel(application: Application) : AndroidViewModel(applicati
 
     fun selectTournament(tournamentId: Long) {
         _selectedTournamentId.value = tournamentId
-        observeTournamentData(tournamentId)
-    }
-
-    private fun observeTournamentData(tournamentId: Long) {
-        viewModelScope.launch {
-            repository.getMatchesForTournament(tournamentId).collect {
-                _matches.value = it
-            }
-        }
-        viewModelScope.launch {
-            repository.getTeamsForTournament(tournamentId).collect {
-                _teams.value = it
-            }
-        }
-        viewModelScope.launch {
-            repository.getPointsTable(tournamentId).collect {
-                _pointsTable.value = it
-            }
-        }
         refreshPlayerStats()
     }
 
     fun selectMatch(matchId: Long) {
         _selectedMatchId.value = matchId
-        viewModelScope.launch {
-            repository.getMatchById(matchId).collect {
-                _selectedMatch.value = it
-            }
-        }
-        viewModelScope.launch {
-            repository.getBallsForMatch(matchId).collect {
-                _ballsForSelectedMatch.value = it
-            }
-        }
-        viewModelScope.launch {
-            repository.getLineupForMatch(matchId).collect {
-                _lineupForSelectedMatch.value = it
-            }
-        }
     }
 
     fun updateTossAndLineup(
@@ -143,10 +134,13 @@ class TournamentViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun startSecondInnings(matchId: Long) {
+    fun startSecondInnings(matchId: Long, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.startSecondInnings(matchId)
-            selectMatch(matchId)
+            _selectedMatchId.value = matchId
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
         }
     }
 

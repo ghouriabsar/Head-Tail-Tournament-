@@ -168,6 +168,9 @@ class TournamentRepository(private val dao: TournamentDao) {
         return dao.getLineupForMatch(matchId)
     }
 
+    suspend fun getMatchByIdSync(matchId: Long): MatchEntity? = dao.getMatchByIdSync(matchId)
+    suspend fun getBallsForMatchSync(matchId: Long): List<BallEntity> = dao.getBallsForMatchSync(matchId)
+
     suspend fun updateTossAndLineup(
         matchId: Long,
         tossWinner: String,
@@ -319,7 +322,7 @@ class TournamentRepository(private val dao: TournamentDao) {
                 isDraw = false
                 val wicketsLeft = (maxWicketsTeam2 - innings2Wickets).coerceAtLeast(1)
                 winningMargin = "$secondInningsBattingTeam won by $wicketsLeft wicket${if (wicketsLeft > 1) "s" else ""}"
-            } else if (innings2Balls >= maxBalls || innings2Wickets >= maxWicketsTeam2) {
+            } else if (innings2Wickets >= maxWicketsTeam2) {
                 status = "COMPLETED"
                 if (innings1Score > innings2Score) {
                     val marginRuns = innings1Score - innings2Score

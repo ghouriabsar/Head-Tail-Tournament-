@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.SportsCricket
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
@@ -51,7 +52,15 @@ fun LiveScoringScreen(
     onCompleteInnings: () -> Unit,
     onTriggerDrawOptions: () -> Unit
 ) {
-    if (match == null) return
+    if (match == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = HighDensityGreenHeader)
+        }
+        return
+    }
 
     val teamA = match.teamA
     val teamB = match.teamB
@@ -75,8 +84,14 @@ fun LiveScoringScreen(
 
     // Active players state
     var striker by remember(currentInnings) { mutableStateOf(battingRoster.getOrElse(0) { currentBattingTeam }) }
-    var nonStriker by remember(currentInnings) { mutableStateOf(battingRoster.getOrElse(0) { currentBattingTeam }) }
+    var nonStriker by remember(currentInnings) { mutableStateOf(battingRoster.getOrElse(1) { battingRoster.getOrElse(0) { currentBattingTeam } }) }
     var bowler by remember(currentInnings) { mutableStateOf(bowlingRoster.getOrElse(0) { currentBowlingTeam }) }
+
+    val swapStrikeLambda = {
+        val temp = striker
+        striker = nonStriker
+        nonStriker = temp
+    }
 
     var showWicketDialog by remember { mutableStateOf(false) }
     var showBowlerDialog by remember { mutableStateOf(false) }
@@ -100,14 +115,13 @@ fun LiveScoringScreen(
     } else 0
 
     val runsNeeded = (targetScore - totalRuns).coerceAtLeast(0)
-    val ballsRemaining = (match.oversPerInnings * 6 - legalDeliveries).coerceAtLeast(0)
 
     // Check innings or match finish
-    LaunchedEffect(legalDeliveries, totalWickets, totalRuns, currentInnings) {
-        if (currentInnings == 1 && (legalDeliveries >= match.oversPerInnings * 6 || totalWickets >= maxWickets) && currentInningsBalls.isNotEmpty()) {
+    LaunchedEffect(totalWickets, totalRuns, currentInnings) {
+        if (currentInnings == 1 && totalWickets >= maxWickets && currentInningsBalls.isNotEmpty()) {
             onCompleteInnings()
         } else if (currentInnings >= 2) {
-            if (legalDeliveries >= match.oversPerInnings * 6 || totalWickets >= maxWickets) {
+            if (totalWickets >= maxWickets) {
                 if (totalRuns == targetScore - 1) {
                     onTriggerDrawOptions()
                 }
@@ -125,6 +139,14 @@ fun LiveScoringScreen(
                     }
                 },
                 actions = {
+                    if (currentInnings == 1) {
+                        TextButton(
+                            onClick = onCompleteInnings,
+                            modifier = Modifier.testTag("end_1st_innings_button")
+                        ) {
+                            Text("END INNINGS", color = GoldAccent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
                     IconButton(
                         onClick = onUndoLastBall,
                         modifier = Modifier.testTag("undo_last_ball_button")
@@ -175,7 +197,7 @@ fun LiveScoringScreen(
                             Text(text = "CRR: ${String.format("%.2f", runRate)}", fontSize = 12.sp, color = Color.White)
                             if (currentInnings >= 2) {
                                 Text(text = "Target: $targetScore", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GoldAccent)
-                                Text(text = "Need $runsNeeded in $ballsRemaining b", fontSize = 12.sp, color = Color.White)
+                                Text(text = "Need $runsNeeded run${if (runsNeeded == 1) "" else "s"}", fontSize = 12.sp, color = Color.White)
                             }
                         }
                     }
@@ -190,12 +212,29 @@ fun LiveScoringScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🏏 Batsman: $striker", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = HighDensityGreenHeader)
-                        Text(text = "🎯 Bowler: $bowler", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = HighDensityTextPrimary)
+                        Column {
+                            Text(text = "🏏 Striker: $striker", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = HighDensityGreenHeader)
+                            Text(text = "🏃 Non-Striker: $nonStriker", fontSize = 12.sp, color = HighDensityTextSecondary)
+                            Text(text = "🎯 Bowler: $bowler", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = HighDensityTextPrimary)
+                        }
+                        Row {
+                            IconButton(
+                                onClick = swapStrikeLambda,
+                                modifier = Modifier.testTag("swap_strike_button")
+                            ) {
+                                Icon(Icons.Default.SwapHoriz, contentDescription = "Swap Strike", tint = HighDensityGreenHeader)
+                            }
+                            IconButton(
+                                onClick = { showBowlerDialog = true },
+                                modifier = Modifier.testTag("change_bowler_button")
+                            ) {
+                                Icon(Icons.Default.SportsCricket, contentDescription = "Change Bowler", tint = HighDensityGreenHeader)
+                            }
+                        }
                     }
                 }
 
@@ -243,37 +282,37 @@ fun LiveScoringScreen(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ScoringButton("1", modifier = Modifier.weight(1f).testTag("btn_1")) {
                             onRecordBall(1, false, null, null, null, striker, nonStriker, bowler, currentBattingTeam)
-                            handlePostBallRotation(1, currentBallInOver, swapStrike = { }, promptBowler = { showBowlerDialog = true })
+                            handlePostBallRotation(1, currentBallInOver, swapStrike = swapStrikeLambda)
                         }
                         ScoringButton("2", modifier = Modifier.weight(1f).testTag("btn_2")) {
                             onRecordBall(2, false, null, null, null, striker, nonStriker, bowler, currentBattingTeam)
-                            handlePostBallRotation(2, currentBallInOver, swapStrike = { }, promptBowler = { showBowlerDialog = true })
+                            handlePostBallRotation(2, currentBallInOver, swapStrike = swapStrikeLambda)
                         }
                         ScoringButton("3", modifier = Modifier.weight(1f).testTag("btn_3")) {
                             onRecordBall(3, false, null, null, null, striker, nonStriker, bowler, currentBattingTeam)
-                            handlePostBallRotation(3, currentBallInOver, swapStrike = { }, promptBowler = { showBowlerDialog = true })
+                            handlePostBallRotation(3, currentBallInOver, swapStrike = swapStrikeLambda)
                         }
                     }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ScoringButton("4", color = FourBlue, modifier = Modifier.weight(1f).testTag("btn_4")) {
                             onRecordBall(4, false, null, null, null, striker, nonStriker, bowler, currentBattingTeam)
-                            handlePostBallRotation(4, currentBallInOver, swapStrike = { }, promptBowler = { showBowlerDialog = true })
+                            handlePostBallRotation(4, currentBallInOver, swapStrike = swapStrikeLambda)
                         }
                         ScoringButton("5", modifier = Modifier.weight(1f).testTag("btn_5")) {
                             onRecordBall(5, false, null, null, null, striker, nonStriker, bowler, currentBattingTeam)
-                            handlePostBallRotation(5, currentBallInOver, swapStrike = { }, promptBowler = { showBowlerDialog = true })
+                            handlePostBallRotation(5, currentBallInOver, swapStrike = swapStrikeLambda)
                         }
                         ScoringButton("6", color = SixPurple, modifier = Modifier.weight(1f).testTag("btn_6")) {
                             onRecordBall(6, false, null, null, null, striker, nonStriker, bowler, currentBattingTeam)
-                            handlePostBallRotation(6, currentBallInOver, swapStrike = { }, promptBowler = { showBowlerDialog = true })
+                            handlePostBallRotation(6, currentBallInOver, swapStrike = swapStrikeLambda)
                         }
                     }
 
@@ -281,7 +320,9 @@ fun LiveScoringScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         ScoringButton("OUT / WICKET", color = BoundaryRed, modifier = Modifier.fillMaxWidth().testTag("btn_out")) {
-                            onRecordBall(0, true, "OUT", striker, null, striker, nonStriker, bowler, currentBattingTeam)
+                            onRecordBall(0, true, "BOWLED", striker, null, striker, nonStriker, bowler, currentBattingTeam)
+                            val remaining = battingRoster.filter { it != striker }
+                            if (remaining.isNotEmpty()) striker = remaining.first()
                         }
                     }
                 }
@@ -371,15 +412,13 @@ fun LiveScoringScreen(
 private fun handlePostBallRotation(
     runs: Int,
     currentBallInOver: Int,
-    swapStrike: () -> Unit,
-    promptBowler: () -> Unit
+    swapStrike: () -> Unit
 ) {
     if (runs == 1 || runs == 3 || runs == 5) {
         swapStrike()
     }
     if (currentBallInOver == 5) { // 6th ball
         swapStrike()
-        promptBowler()
     }
 }
 

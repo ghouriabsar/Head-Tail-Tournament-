@@ -121,9 +121,11 @@ class MainActivity : ComponentActivity() {
                                 lineup = lineupForSelectedMatch,
                                 onBack = { navController.popBackStack() },
                                 onRecordBall = { runs, isWicket, dismissalType, dismissedPlayer, extraType, batsman, nonStriker, bowler, battingTeam ->
-                                    val overNumber = ballsForSelectedMatch.size / 6
-                                    val ballNumber = (ballsForSelectedMatch.size % 6) + 1
                                     val currentInnings = selectedMatch?.currentInnings ?: 1
+                                    val currentInningsBalls = ballsForSelectedMatch.filter { it.innings == currentInnings }
+                                    val legalCount = currentInningsBalls.count { it.extraType != "WIDE" && it.extraType != "NO_BALL" }
+                                    val overNumber = legalCount / 6
+                                    val ballNumber = (legalCount % 6) + 1
 
                                     viewModel.recordBall(
                                         matchId = matchId,
@@ -156,7 +158,8 @@ class MainActivity : ComponentActivity() {
                             val innings1Balls = ballsForSelectedMatch.filter { it.innings == 1 }
                             val totalRuns = innings1Balls.sumOf { it.runs }
                             val wickets = innings1Balls.count { it.isWicket }
-                            val overs = "${innings1Balls.size / 6}.${innings1Balls.size % 6}"
+                            val legalInnings1 = innings1Balls.count { it.extraType != "WIDE" && it.extraType != "NO_BALL" }
+                            val overs = "${legalInnings1 / 6}.${legalInnings1 % 6}"
 
                             val firstInningsBattingTeam = selectedMatch?.let { m ->
                                 val winner = m.tossWinner
@@ -175,9 +178,10 @@ class MainActivity : ComponentActivity() {
                                 overs = overs,
                                 targetScore = totalRuns + 1,
                                 onStartSecondInnings = {
-                                    viewModel.startSecondInnings(matchId)
-                                    navController.navigate("live_scoring/$matchId") {
-                                        popUpTo("innings_complete/$matchId") { inclusive = true }
+                                    viewModel.startSecondInnings(matchId) {
+                                        navController.navigate("live_scoring/$matchId") {
+                                            popUpTo("innings_complete/$matchId") { inclusive = true }
+                                        }
                                     }
                                 }
                             )

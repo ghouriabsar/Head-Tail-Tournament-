@@ -4,7 +4,7 @@
 # Copyright 2015 the original author or authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
+# you may not use this file except in compliance with the License me.
 # You may obtain a copy of the License at
 #
 #      https://www.apache.org/licenses/LICENSE-2.0
@@ -47,6 +47,10 @@ APP_BASE_NAME=`basename "$0"`
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
 
+# Use the maximum available byte code version of the executing JVM.
+# First 128 bytes are skipped since class format version is located at offset 0x07 with length 0x02.
+# JVM options with variable byte sizes (like -XX:MaxPermSize) might not be handled correctly.
+
 warn () {
     echo "$*"
 }
@@ -83,6 +87,7 @@ CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+        # IBM's JDK on AIX uses strange locations for the executables
         JAVACMD="$JAVA_HOME/jre/sh/java"
     else
         JAVACMD="$JAVA_HOME/bin/java"
@@ -101,17 +106,21 @@ Please set the JAVA_HOME variable in your environment to match the
 location of your Java installation."
 fi
 
+# Increase default memory limit if NOT specified
 if [ -z "$JAVA_OPTS" ] ; then
     JAVA_OPTS=""
 fi
 
+# Collect all arguments for the java command.
 set -- "-Dorg.gradle.appname=$APP_BASE_NAME" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
 
+# For Cygwin or MSYS, switch paths to Windows format before running java
 if $cygwin || $msys ; then
     APP_HOME=`cygpath --path --mixed "$APP_HOME"`
     CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
     JAVACMD=`cygpath --unix "$JAVACMD"`
 
+    # Portability hack for Param/Path variables
     case "$LD_LIBRARY_PATH" in
         "")
             ;;
@@ -121,6 +130,7 @@ if $cygwin || $msys ; then
     esac
 fi
 
+# Split JAVA_OPTS into array elements if necessary
 if [ -n "$JAVA_OPTS" ] ; then
     eval "set -- $JAVA_OPTS \"\$@\""
 fi

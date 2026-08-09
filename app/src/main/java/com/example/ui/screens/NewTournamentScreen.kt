@@ -3,12 +3,15 @@ package com.example.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -16,6 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+
+data class TeamItemState(
+    val name: String,
+    val captain: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,17 +33,14 @@ fun NewTournamentScreen(
 ) {
     var tournamentName by remember { mutableStateOf("Head & Tail League 2026") }
 
-    var team1Name by remember { mutableStateOf("Team Absar") }
-    var team1Cap by remember { mutableStateOf("Absar") }
-
-    var team2Name by remember { mutableStateOf("Team Zubair") }
-    var team2Cap by remember { mutableStateOf("Zubair") }
-
-    var team3Name by remember { mutableStateOf("Team Moiz") }
-    var team3Cap by remember { mutableStateOf("Moiz") }
-
-    var team4Name by remember { mutableStateOf("Team Usman") }
-    var team4Cap by remember { mutableStateOf("Usman") }
+    val teamsList = remember {
+        mutableStateListOf(
+            TeamItemState("Team Absar", "Absar"),
+            TeamItemState("Team Zubair", "Zubair"),
+            TeamItemState("Team Moiz", "Moiz"),
+            TeamItemState("Team Usman", "Usman")
+        )
+    }
 
     var showConfirmation by remember { mutableStateOf(false) }
 
@@ -48,7 +53,11 @@ fun NewTournamentScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = HighDensityGreenHeader, titleContentColor = Color.White, navigationIconContentColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = HighDensityGreenHeader,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         },
         containerColor = HighDensityBg
@@ -68,9 +77,19 @@ fun NewTournamentScreen(
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = "ℹ️ NEW TOURNAMENT CREATION", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GoldAccent, letterSpacing = 1.sp)
+                        Text(
+                            text = "ℹ️ NEW TOURNAMENT CREATION",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GoldAccent,
+                            letterSpacing = 1.sp
+                        )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = "Creating a new tournament will generate fresh fixtures and reset current standings. All past tournament archives and lifetime player career statistics will be preserved permanently!", fontSize = 12.sp, color = Color.White)
+                        Text(
+                            text = "Creating a new tournament will generate fresh fixtures and reset current standings. Add or remove teams below as needed!",
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
                     }
                 }
             }
@@ -83,51 +102,113 @@ fun NewTournamentScreen(
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text(text = "🏆 Tournament Title", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = HighDensityGreenHeader)
+                        Text(
+                            text = "🏆 Tournament Title",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = HighDensityGreenHeader
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = tournamentName,
                             onValueChange = { tournamentName = it },
                             label = { Text("Tournament Name") },
-                            modifier = Modifier.fillMaxWidth().testTag("new_tournament_name_input")
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("new_tournament_name_input")
                         )
                     }
                 }
             }
 
-            // Team Inputs
+            // Teams Header
             item {
+                Text(
+                    text = "👥 Participating Teams (${teamsList.size} Teams)",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HighDensityTextPrimary
+                )
+            }
+
+            itemsIndexed(teamsList) { index, team ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = BorderStroke(1.dp, HighDensityBorder),
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text(text = "👥 Participating Teams (Double Round Robin)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = HighDensityTextPrimary)
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Team #${index + 1}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = HighDensityGreenHeader
+                            )
+                            if (teamsList.size > 2) {
+                                IconButton(
+                                    onClick = { teamsList.removeAt(index) },
+                                    modifier = Modifier.testTag("remove_team_$index")
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Remove Team",
+                                        tint = BoundaryRed
+                                    )
+                                }
+                            }
+                        }
 
-                        OutlinedTextField(value = team1Name, onValueChange = { team1Name = it }, label = { Text("Team 1 Name") }, modifier = Modifier.fillMaxWidth().testTag("new_team1_name"))
                         Spacer(modifier = Modifier.height(6.dp))
-                        OutlinedTextField(value = team1Cap, onValueChange = { team1Cap = it }, label = { Text("Team 1 Captain") }, modifier = Modifier.fillMaxWidth().testTag("new_team1_cap"))
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = team.name,
+                            onValueChange = { newName ->
+                                teamsList[index] = team.copy(name = newName)
+                            },
+                            label = { Text("Team Name") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("new_team_${index}_name")
+                        )
 
-                        OutlinedTextField(value = team2Name, onValueChange = { team2Name = it }, label = { Text("Team 2 Name") }, modifier = Modifier.fillMaxWidth().testTag("new_team2_name"))
                         Spacer(modifier = Modifier.height(6.dp))
-                        OutlinedTextField(value = team2Cap, onValueChange = { team2Cap = it }, label = { Text("Team 2 Captain") }, modifier = Modifier.fillMaxWidth().testTag("new_team2_cap"))
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(value = team3Name, onValueChange = { team3Name = it }, label = { Text("Team 3 Name") }, modifier = Modifier.fillMaxWidth().testTag("new_team3_name"))
-                        Spacer(modifier = Modifier.height(6.dp))
-                        OutlinedTextField(value = team3Cap, onValueChange = { team3Cap = it }, label = { Text("Team 3 Captain") }, modifier = Modifier.fillMaxWidth().testTag("new_team3_cap"))
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(value = team4Name, onValueChange = { team4Name = it }, label = { Text("Team 4 Name") }, modifier = Modifier.fillMaxWidth().testTag("new_team4_name"))
-                        Spacer(modifier = Modifier.height(6.dp))
-                        OutlinedTextField(value = team4Cap, onValueChange = { team4Cap = it }, label = { Text("Team 4 Captain") }, modifier = Modifier.fillMaxWidth().testTag("new_team4_cap"))
+                        OutlinedTextField(
+                            value = team.captain,
+                            onValueChange = { newCap ->
+                                teamsList[index] = team.copy(captain = newCap)
+                            },
+                            label = { Text("Player / Captain Name") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("new_team_${index}_cap")
+                        )
                     }
+                }
+            }
+
+            // Add Team Button
+            item {
+                OutlinedButton(
+                    onClick = {
+                        val nextNum = teamsList.size + 1
+                        teamsList.add(TeamItemState("Team $nextNum", "Player $nextNum"))
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, HighDensityGreenHeader),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("add_team_button")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Team", tint = HighDensityGreenHeader)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("ADD ANOTHER TEAM", fontWeight = FontWeight.Bold, color = HighDensityGreenHeader)
                 }
             }
 
@@ -158,14 +239,11 @@ fun NewTournamentScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val teamList = listOf(
-                            Pair(team1Name, team1Cap),
-                            Pair(team2Name, team2Cap),
-                            Pair(team3Name, team3Cap),
-                            Pair(team4Name, team4Cap)
-                        ).filter { it.first.isNotBlank() }
+                        val finalTeams = teamsList
+                            .filter { it.name.isNotBlank() }
+                            .map { Pair(it.name.trim(), it.captain.ifBlank { it.name }.trim()) }
 
-                        onCreateTournament(tournamentName, teamList)
+                        onCreateTournament(tournamentName, finalTeams)
                         showConfirmation = false
                     },
                     modifier = Modifier.testTag("confirm_create_tournament_btn")

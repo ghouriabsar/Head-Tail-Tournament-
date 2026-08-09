@@ -36,7 +36,15 @@ fun MatchSetupScreen(
         teamBPlayers: List<String>
     ) -> Unit
 ) {
-    if (match == null) return
+    if (match == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = HighDensityGreenHeader)
+        }
+        return
+    }
 
     val teamA = match.teamA
     val teamB = match.teamB
